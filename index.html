@@ -313,15 +313,32 @@
     return last.reduce((a,b)=>a+b,0)/last.length;
   }
 
+  async function fetchJson(url){
+    // اول مستقیم تلاش می‌کنیم
+    try{
+      const r = await fetch(url);
+      if(!r.ok) throw new Error('bad status');
+      return await r.json();
+    }catch(e1){
+      // اگه مستقیم کار نکرد، از یه واسطه (پروکسی) عبور می‌کنیم
+      try{
+        const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        const r2 = await fetch(proxied);
+        if(!r2.ok) throw new Error('proxy bad status');
+        return await r2.json();
+      }catch(e2){
+        throw new Error('هم مستقیم هم از طریق واسطه ناموفق بود');
+      }
+    }
+  }
+
   async function fetchKlines(symbol, tfKey, limit=150){
     const resolution = RESOLUTION_MAP[tfKey] || '15';
     const barSeconds = SECONDS_MAP[tfKey] || 900;
     const to = Math.floor(Date.now()/1000);
     const from = to - barSeconds*(limit+5);
     const url = `https://api.nobitex.ir/market/udf/history?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('fetch failed');
-    const data = await res.json();
+    const data = await fetchJson(url);
     if(data.s !== 'ok' || !Array.isArray(data.c) || data.c.length < 20){
       throw new Error('نوبیتکس داده‌ی کافی برنگردوند');
     }
